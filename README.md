@@ -12,6 +12,10 @@ python -m pip install -e ".[clustering]"
 
 Dependency versions are listed in `requirements-lock.txt`.
 
+## Data
+
+`data/source_data.xlsx` contains 2,413 unique hazard records with `raw_record_id` and `raw_text` columns. `data/Gold_Records.xlsx` contains 395 reference hazard units from 271 records. The shared `raw_record_id` links annotations to source records.
+
 ## Main pipeline
 
 Set `QWEN_API_KEY`, `DEEPSEEK_API_KEY` and `DOUBAO_API_KEY` in the environment, or copy `.env.example` to `.env.local` and supply the values locally.
@@ -19,7 +23,7 @@ Set `QWEN_API_KEY`, `DEEPSEEK_API_KEY` and `DOUBAO_API_KEY` in the environment, 
 Prepare an input CSV or XLSX with `raw_record_id` and `raw_text` columns for record identifiers and hazard descriptions:
 
 ```bash
-python scripts/run_experiment_pipeline.py --config config/experiment.yaml --input /path/to/input.csv --id-column raw_record_id --text-column raw_text --output-root /path/to/local-runs --run-name experiment --stage all
+python scripts/run_experiment_pipeline.py --config config/experiment.yaml --input data/source_data.xlsx --id-column raw_record_id --text-column raw_text --output-root /path/to/local-runs --run-name experiment --stage all
 ```
 
 | Role | API model ID |
