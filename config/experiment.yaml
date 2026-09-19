@@ -1,0 +1,254 @@
+project:
+  name: industrial_hazard_analysis
+  random_seed: 42
+paths:
+  source_data: null
+  gold_standard: null
+  output_dir: outputs/experiments/latest
+  prompts_dir: prompts
+input:
+  sheet_name: Sheet1
+  id_column: raw_record_id
+  text_column: raw_text
+  deduplicate_raw_text: true
+llm:
+  tasks:
+    structured_extraction:
+      mode: arbitration
+      worker_providers:
+      - qwen
+      - deepseek
+      - doubao
+      arbitrator_provider: deepseek
+      batch_size: 5
+      prompt_path: prompts/appendix_A_structured_extraction_prompt.txt
+      batch_prompt_path: prompts/appendix_A_structured_extraction_batch_prompt.txt
+      arbitration_prompt_path: prompts/appendix_B_structured_extraction_arbitration_prompt.txt
+    scene_secondary_split:
+      mode: lightweight
+      worker_providers:
+      - deepseek
+      batch_size: 10
+      prompt_path: prompts/appendix_C_scene_secondary_split_prompt.txt
+      batch_prompt_path: prompts/appendix_C_scene_secondary_split_batch_prompt.txt
+      arbitration_prompt_path: prompts/appendix_D_scene_split_arbitration_prompt.txt
+  extractors:
+  - provider: qwen
+    model: qwen-3.7-flash
+    api_key_env: QWEN_API_KEY
+    base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+  - provider: deepseek
+    model: deepseek-v4-flash
+    api_key_env: DEEPSEEK_API_KEY
+    base_url: https://api.deepseek.com
+  - provider: doubao
+    model: doubao-seed-2-0-lite-260215
+    api_key_env: DOUBAO_API_KEY
+    base_url: https://ark.cn-beijing.volces.com/api/v3
+  arbitrator:
+    provider: deepseek
+    model: deepseek-v4-pro
+    api_key_env: DEEPSEEK_API_KEY
+    base_url: https://api.deepseek.com
+  cluster_namer:
+    provider: qwen
+    model: qwen-3.7-flash
+    api_key_env: QWEN_API_KEY
+    base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    prompt_path: prompts/appendix_E_cluster_naming_prompt_v2.txt
+    modular_config_path: config/cluster_naming_v2.yaml
+embedding:
+  provider: qwen
+  model: text-embedding-v4
+  api_key_env: QWEN_API_KEY
+  base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+  dimension: 1024
+  batch_size: 10
+clustering:
+  use_real_backend: true
+  allow_backend_fallback: false
+  numba_cache_dir: .numba_cache
+  umap:
+    n_neighbors: 15
+    n_components: 10
+    min_dist: 0.05
+    metric: cosine
+  hdbscan:
+    min_cluster_size: 10
+    min_samples: 3
+    metric: euclidean
+    cluster_selection_method: eom
+    cluster_selection_epsilon: 0.0
+  noise_recluster:
+    enabled: true
+    min_noise_ratio: 0.1
+    min_noise_count: 100
+    strategy: secondary_noise_only
+    umap:
+      n_neighbors: 8
+      n_components: 5
+      min_dist: 0.05
+      metric: cosine
+    hdbscan:
+      min_cluster_size: 3
+      min_samples: 1
+      metric: euclidean
+      cluster_selection_method: eom
+      cluster_selection_epsilon: 0.0
+experiments:
+  baselines:
+    B1:
+      name: full_text_text_embedding_v4_umap_hdbscan
+      input: raw_text
+      analysis_grain: deduplicated_record
+      embedding_provider: qwen
+  channels:
+    T1:
+      fields:
+      - finding
+      analysis_grain: hazard_unit
+    T2:
+      fields:
+      - object
+      analysis_grain: hazard_unit
+    T3:
+      fields:
+      - risk_scene
+      analysis_grain: hazard_unit
+    T4:
+      fields:
+      - loc_detail
+      analysis_grain: hazard_unit
+    T5:
+      fields:
+      - object
+      - finding
+      analysis_grain: hazard_unit
+    T6:
+      fields:
+      - risk_scene
+      - finding
+      analysis_grain: hazard_unit
+    T7:
+      fields:
+      - risk_scene
+      - object
+      analysis_grain: hazard_unit
+    T8:
+      fields:
+      - risk_scene
+      - object
+      - finding
+      analysis_grain: hazard_unit
+multistage:
+  candidate_id: secondary
+  random_seed: 42
+  parent_min_units: 30
+  target_min_units: 20
+  paths:
+    P1:
+      parent_channel: T1
+      parent_fields:
+      - finding
+      target_channel: T2
+      target_fields:
+      - object
+    P2:
+      parent_channel: T3
+      parent_fields:
+      - risk_scene
+      target_channel: T1
+      target_fields:
+      - finding
+  umap:
+    n_neighbors: 8
+    n_components: 5
+    min_dist: 0.05
+    metric: cosine
+  hdbscan:
+    min_cluster_size: 3
+    min_samples: 1
+    metric: euclidean
+    cluster_selection_method: eom
+    cluster_selection_epsilon: 0.0
+  secondary_noise_recluster: false
+  representative_case_rule: largest_eligible_parent_with_at_least_two_non_noise_child_topics
+ablation:
+  enabled: true
+  analysis_grain: hazard_unit
+  parent_record_universe: all_deduplicated_records
+  retain_no_output_parent_records: true
+  complete_case_filter: false
+  no_consistency_providers:
+  - qwen
+  - deepseek
+  - doubao
+  experiments:
+    A1-F:
+      name: no_consistency_finding
+      ablation_target: consistency_arbitration
+      use_consistency_arbitration: false
+      provider_variants: true
+      scene_secondary_split: false
+      fields:
+      - finding
+      analysis_goal: 检验一致性处理对 finding 通道的影响
+    A2-F:
+      name: full_pipeline_finding
+      ablation_target: consistency_arbitration
+      use_consistency_arbitration: true
+      scene_secondary_split: false
+      fields:
+      - finding
+      analysis_goal: finding 通道完整流程参照
+    A1-O:
+      name: no_consistency_object
+      ablation_target: consistency_arbitration
+      use_consistency_arbitration: false
+      provider_variants: true
+      scene_secondary_split: false
+      fields:
+      - object
+      analysis_goal: 检验一致性处理对 object 通道的影响
+    A2-O:
+      name: full_pipeline_object
+      ablation_target: consistency_arbitration
+      use_consistency_arbitration: true
+      scene_secondary_split: false
+      fields:
+      - object
+      analysis_goal: object 通道完整流程参照
+    A1-R:
+      name: no_consistency_scene
+      ablation_target: consistency_arbitration
+      use_consistency_arbitration: false
+      provider_variants: true
+      scene_secondary_split: false
+      fields:
+      - scene
+      analysis_goal: 检验一致性处理对原始 scene 通道的影响
+    A2-R:
+      name: full_pipeline_risk_scene
+      ablation_target: consistency_arbitration
+      use_consistency_arbitration: true
+      scene_secondary_split: true
+      fields:
+      - risk_scene
+      analysis_goal: risk_scene 通道完整流程参照
+    A3-R:
+      name: recombined_scene_components
+      ablation_target: scene_secondary_split
+      use_consistency_arbitration: true
+      scene_secondary_split: loc_detail_plus_risk_scene
+      fields:
+      - loc_detail
+      - risk_scene
+      analysis_goal: 检验消融场景拆分步骤后重新合并场景信息的聚类结果
+    A4-R:
+      name: risk_scene_pipeline_identity_check
+      ablation_target: pipeline_identity_check
+      use_consistency_arbitration: true
+      scene_secondary_split: risk_scene_only
+      fields:
+      - risk_scene
+      analysis_goal: 与 A2-R 核对相同 risk_scene 输入在同一后端下的产物一致性，不作为独立实质消融

@@ -1,0 +1,21 @@
+schema_version: 2
+prompt_version: modular-cluster-naming-v2.0.1
+model:
+  provider: qwen
+  display_name: Qwen3.7-Flash
+  model: qwen-3.7-flash
+  api_key_env: QWEN_API_KEY
+  base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+  endpoint: /chat/completions
+  generation:
+    temperature: 0
+    top_p: 1.0
+    max_completion_tokens: 768
+    enable_thinking: false
+    response_format: json_schema
+  timeout_seconds: 120
+  max_attempts: 3
+  retry_backoff_seconds:
+  - 2
+  - 4
+prompts_path: ../prompts/cluster_naming.yaml

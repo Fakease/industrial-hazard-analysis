@@ -1,0 +1,52 @@
+schema_version: 2
+prompt_version: topic-control-synthesis-v2.1.0
+candidate_generation:
+  top_k: 5
+  high_similarity_quantile: 0.95
+  threshold_reference_scope: cross_parent
+  selected_rule: mutual_top_k_union_high_similarity
+  pair_batch_size: 6
+  use_topic_names: false
+  use_topic_explanations: false
+group_construction:
+  method: maximal_clique_of_explicit_positive_edges
+  positive_relations:
+  - same_control_same_failure
+  - same_control_different_failure
+  permit_overlapping_groups: true
+  transitive_connected_components_as_final_groups: false
+unit_validation:
+  batch_size: 12
+  include_raw_record_text: false
+  include_fields:
+  - finding
+  - object
+  - risk_scene
+  minimum_support_threshold: null
+knowledge_card:
+  max_representative_supported_units: 12
+  keep_zero_support_controls: false
+model:
+  provider: qwen
+  display_name: Qwen3.7-Flash
+  model: qwen-3.7-flash
+  api_key_env: QWEN_API_KEY
+  base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+  endpoint: /chat/completions
+  temperature: 0
+  top_p: 1.0
+  enable_thinking: false
+  timeout_seconds: 120
+  max_attempts: 3
+  retry_backoff_seconds:
+  - 2
+  - 4
+  max_completion_tokens:
+    relation_batch: 4096
+    group_validation: 3072
+    unit_validation_batch: 4096
+    knowledge_card_semantics: 2048
+    synthesis_group_validation: 4096
+    synthesis_unit_evidence_batch: 4096
+    synthesis_knowledge_card_semantics: 2048
+prompts_path: ../prompts/k1.yaml

@@ -1,0 +1,57 @@
+shared_definitions: |-
+  【术语定义】
+  1. 安全控制：针对同一安全功能、致险机理或检查整改目标的技术、工程、作业或管理措施。共享对象、词语或宽泛领域本身不足以证明属于同一安全控制。
+  2. 失效形式：某项安全控制在现场表现出的具体偏离状态，例如缺失、损坏、脱落、功能异常、安装异常、被阻挡、未点检、无记录、内容不完整或与现场不一致。只能概括输入证据实际出现的状态。
+  3. 判断时同时比较安全功能、致险机理以及检查或整改动作；不得为了减少组数而强制归并。证据混杂或不足时保守判断。
+  4. 主题名称和说明只是索引，必须以代表finding、object和risk_scene为主要证据。
+  5. 不引用或虚构法规条款，不输出思维过程。
+pair_task: |-
+  【任务：主题对安全关系判断】
+  对输入中的每个主题对分别判断其安全关系。关系只能是：
+  - same_control_same_failure：同一安全控制，且主要失效形式相同；
+  - same_control_different_failure：同一安全控制，但主要失效形式不同；
+  - related_but_different_control：对象、术语或风险背景相关，但安全功能、致险机理或检查整改目标不同；
+  - not_same_or_insufficient：没有充分证据认为属于同一安全控制，或主题证据明显混杂。
+  shared_control_name仅在前两类填写。evidence_a和evidence_b只能填写输入中对应的sample_id。important_difference应保留会改变检查或整改方式的差异。needs_review在证据混杂、边界不清或判断依赖外部专业依据时设为true。
+group_task: |-
+  【任务：候选安全控制组核验】
+  核验输入候选组是否能在同一抽象层次下形成共同安全控制。不得仅依赖正向关系的传递性。检查组内是否混入不同安全功能、不同致险机理、过宽共同名称或由单条边链式带入的成员。
+  decision只能是accept、remove_members、split或reject。所有输入topic_id必须且只能出现一次：要么进入一个validated_group，要么进入removed_topic_ids；不同子组不得共享主题。每个核验后子组至少包含两个输入主题，所有ID必须逐字取自输入。
+  - accept：必须只返回一个validated_group，该组包含全部输入主题，removed_topic_ids为空；
+  - remove_members：必须只返回一个至少含两个主题的validated_group，removed_topic_ids列出全部被删除主题且不得为空；
+  - split：必须返回至少两个互不重叠、各含至少两个主题的validated_group，不能组成任何有效子组的输入主题全部列入removed_topic_ids；三主题候选组不能拆成两个均不少于两主题的子组，此时应选择remove_members或reject；
+  - reject：validated_groups必须为空，removed_topic_ids必须包含全部输入主题。
+  subgroup_id在本次响应内必须唯一。不要重复任何topic_id，不要创造输入外ID。
+unit_task: |-
+  【任务：成员隐患单元证据验证】
+  对每个输入单元判断它是否真正支持指定共同安全控制。若支持，概括证据中实际出现的具体失效形式；若不支持，简述其属于何种不同问题。不要用同组其他单元替代当前单元证据。evidence_basis只做简短证据摘述，不输出推理过程。needs_review在信息不足或边界不清时设为true。
+card_task: |-
+  【任务：安全控制知识卡语义归纳】
+  仅根据已通过单元级验证的证据，生成不过度泛化的共同安全控制名称、简短安全依据、候选检查关注点和重要边界。检查关注点必须能够追溯到实际失效形式，不得写成法规强制要求，不得加入输入未出现的检查项。important_boundaries应明确容易误合并但安全机理不同的问题。不得改写任何计数或来源ID。
+synthesis_group_task: |-
+  【任务：主题级安全控制归纳与证据核验——主题层】
+  核验一个候选主题组能否由同一抽象层次上的明确安全控制统领。重点只判断：是否确属同一控制；共同概括是否过宽；是否需要排除或拆分主题。候选组由显式正向关系的最大团形成，不讨论链式传递问题。
+
+  decision只能是accept、accept_after_excluding_topics、split、reject或unresolved：
+  - accept：恰好返回1个validated_control，全部输入主题在topic_assignments中指向它，excluded_topics为空；
+  - accept_after_excluding_topics：恰好返回1个validated_control，至少2个主题在topic_assignments中指向它，excluded_topics非空；
+  - split：返回至少2个validated_control，每个必须由topic_assignments分配至少2个主题；不能构成保留子组的主题进入excluded_topics；
+  - reject：不返回validated_control，全部输入主题进入excluded_topics，表示它们不能形成输入所假设的共同控制；
+  - unresolved：不返回validated_control，全部输入主题进入excluded_topics，并将needs_further_review设为true，表示现有证据不足以安全判断。
+
+  validated_controls只定义子控制，不重复列成员。每个输入topic_id必须且只能出现一次：要么在顶层topic_assignments中出现一次，并用assigned_control_id指向一个validated_control的subgroup_id；要么在excluded_topics中出现一次。不得在多个控制间重复同一主题，不得创造输入外ID。topic_assignments中的failure_mode和important_difference分别记录该主题在所分配控制下的具体失效形式及重要差异。
+  control_name使用具体安全专业语言，不得写成“安全管理问题”“现场问题”等宽泛名称。control_definition说明共同安全功能或检查整改目标。failure_mode保留可在现场识别的具体偏离；important_difference和important_boundaries记录会改变检查、判断或整改方式的边界。
+synthesis_unit_task: |-
+  【任务：主题级安全控制归纳与证据核验——隐患单元层】
+  对每个输入隐患单元分别判断其finding是否真正支持指定安全控制。若支持，概括该单元证据中实际出现的具体失效形式；若不支持，简述其安全功能、致险机理或检查目的为何不同。不得用同组其他单元替代当前单元证据。
+
+  只返回unit_id、supports_control、failure_mode、exception_reason和needs_further_review。object、risk_scene及其他冻结事实字段不得重新生成。supports_control=true时failure_mode必须非空且exception_reason必须为空；supports_control=false时failure_mode必须为空且exception_reason必须非空。信息不足时保守标记needs_further_review=true，不输出思维过程。
+synthesis_card_task: |-
+  【任务：治理知识语义生成】
+  仅依据已经通过单元证据核验的材料，生成不过度泛化的control_name、control_definition、候选inspection_focus和important_boundaries。inspection_focus必须能追溯到输入中的实际失效形式、对象或场景，只能写成候选检查关注点，不得写成法规强制要求，不得加入输入中没有证据的新要求。important_boundaries记录文字相似但安全功能、致险机理或检查目的不同的边界。
+
+  不得改写或输出任何计数、对象、场景、失效形式统计或来源ID；这些字段由代码从冻结数据和单元核验结果确定性生成。
+output_constraints: |-
+  【输出约束】
+  只输出符合指定strict JSON Schema的JSON对象，不要输出Markdown、解释性前后缀或思维过程。
+input_json_label: 【本次输入JSON】

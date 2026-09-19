@@ -1,0 +1,429 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.org/industrial-hazard-analysis/llm-output-schemas.json",
+  "title": "LLM output schemas for industrial hazard analysis",
+  "definitions": {
+    "extraction_record": {
+      "type": "object",
+      "required": ["finding", "object", "scene"],
+      "properties": {
+        "finding": {"type": "string"},
+        "object": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "scene": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "extraction_array": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/extraction_record"}
+    },
+    "extraction_batch_item": {
+      "type": "object",
+      "required": ["raw_record_id", "records"],
+      "properties": {
+        "raw_record_id": {"type": "string"},
+        "records": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/extraction_record"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "extraction_batch_array": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/extraction_batch_item"}
+    },
+    "scene_split_record": {
+      "type": "object",
+      "required": ["record_id", "loc_detail", "risk_scene"],
+      "properties": {
+        "record_id": {"type": "string"},
+        "loc_detail": {"type": "string"},
+        "risk_scene": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "scene_split_array": {
+      "type": "array",
+      "items": {"$ref": "#/definitions/scene_split_record"}
+    },
+    "cluster_naming_object": {
+      "type": "object",
+      "required": ["cluster_id", "cluster_name", "explanation", "key_evidence"],
+      "properties": {
+        "cluster_id": {"type": ["integer", "string"]},
+        "cluster_name": {"type": "string"},
+        "explanation": {"type": "string"},
+        "key_evidence": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "cluster_naming_v2_object": {
+      "type": "object",
+      "required": ["cluster_id", "cluster_name", "explanation", "key_evidence"],
+      "properties": {
+        "cluster_id": {"type": "string"},
+        "cluster_name": {"type": "string", "minLength": 1},
+        "explanation": {"type": "string", "minLength": 1},
+        "key_evidence": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        }
+      },
+      "additionalProperties": false
+    },
+    "topic_control_relation_judgment": {
+      "type": "object",
+      "required": [
+        "pair_id",
+        "topic_a",
+        "topic_b",
+        "relation",
+        "shared_control_name",
+        "failure_mode_a",
+        "failure_mode_b",
+        "common_safety_basis",
+        "important_difference",
+        "evidence_a",
+        "evidence_b",
+        "needs_review"
+      ],
+      "properties": {
+        "pair_id": {"type": "string", "minLength": 1},
+        "topic_a": {"type": "string", "minLength": 1},
+        "topic_b": {"type": "string", "minLength": 1},
+        "relation": {
+          "type": "string",
+          "enum": [
+            "same_control_same_failure",
+            "same_control_different_failure",
+            "related_but_different_control",
+            "not_same_or_insufficient"
+          ]
+        },
+        "shared_control_name": {"type": "string", "maxLength": 80},
+        "failure_mode_a": {"type": "string", "maxLength": 120},
+        "failure_mode_b": {"type": "string", "maxLength": 120},
+        "common_safety_basis": {"type": "string", "maxLength": 240},
+        "important_difference": {"type": "string", "maxLength": 240},
+        "evidence_a": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "evidence_b": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "needs_review": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "topic_control_relation_batch_object": {
+      "type": "object",
+      "required": ["request_id", "judgments"],
+      "properties": {
+        "request_id": {"type": "string", "minLength": 1},
+        "judgments": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/definitions/topic_control_relation_judgment"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "topic_control_validated_group": {
+      "type": "object",
+      "required": [
+        "subgroup_id",
+        "control_name",
+        "member_topic_ids",
+        "common_safety_basis",
+        "important_boundaries"
+      ],
+      "properties": {
+        "subgroup_id": {"type": "string", "minLength": 1},
+        "control_name": {"type": "string", "minLength": 1, "maxLength": 80},
+        "member_topic_ids": {
+          "type": "array",
+          "minItems": 2,
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "common_safety_basis": {"type": "string", "maxLength": 300},
+        "important_boundaries": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1, "maxLength": 240},
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "topic_control_group_validation_object": {
+      "type": "object",
+      "required": [
+        "request_id",
+        "group_id",
+        "decision",
+        "validated_groups",
+        "removed_topic_ids",
+        "validation_summary",
+        "needs_review"
+      ],
+      "properties": {
+        "request_id": {"type": "string", "minLength": 1},
+        "group_id": {"type": "string", "minLength": 1},
+        "decision": {
+          "type": "string",
+          "enum": ["accept", "remove_members", "split", "reject"]
+        },
+        "validated_groups": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/topic_control_validated_group"}
+        },
+        "removed_topic_ids": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "validation_summary": {"type": "string", "maxLength": 300},
+        "needs_review": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "topic_control_unit_judgment": {
+      "type": "object",
+      "required": [
+        "unit_id",
+        "supports_control",
+        "failure_mode",
+        "exception_reason",
+        "evidence_basis",
+        "needs_review"
+      ],
+      "properties": {
+        "unit_id": {"type": "string", "minLength": 1},
+        "supports_control": {"type": "boolean"},
+        "failure_mode": {"type": "string", "maxLength": 120},
+        "exception_reason": {"type": "string", "maxLength": 240},
+        "evidence_basis": {"type": "string", "maxLength": 240},
+        "needs_review": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "topic_control_unit_validation_batch_object": {
+      "type": "object",
+      "required": ["request_id", "control_group_id", "judgments"],
+      "properties": {
+        "request_id": {"type": "string", "minLength": 1},
+        "control_group_id": {"type": "string", "minLength": 1},
+        "judgments": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/definitions/topic_control_unit_judgment"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "topic_control_knowledge_card_semantics_object": {
+      "type": "object",
+      "required": [
+        "request_id",
+        "control_group_id",
+        "control_name",
+        "safety_basis_summary",
+        "inspection_focus",
+        "important_boundaries",
+        "needs_review"
+      ],
+      "properties": {
+        "request_id": {"type": "string", "minLength": 1},
+        "control_group_id": {"type": "string", "minLength": 1},
+        "control_name": {"type": "string", "minLength": 1, "maxLength": 80},
+        "safety_basis_summary": {"type": "string", "maxLength": 300},
+        "inspection_focus": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1, "maxLength": 240},
+          "uniqueItems": true
+        },
+        "important_boundaries": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1, "maxLength": 240},
+          "uniqueItems": true
+        },
+        "needs_review": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "safety_control_topic_assessment": {
+      "type": "object",
+      "required": [
+        "topic_id",
+        "assigned_control_id",
+        "failure_mode",
+        "important_difference"
+      ],
+      "properties": {
+        "topic_id": {"type": "string", "minLength": 1},
+        "assigned_control_id": {"type": "string", "minLength": 1},
+        "failure_mode": {"type": "string", "minLength": 1, "maxLength": 120},
+        "important_difference": {"type": "string", "maxLength": 240}
+      },
+      "additionalProperties": false
+    },
+    "safety_control_excluded_topic": {
+      "type": "object",
+      "required": ["topic_id", "reason"],
+      "properties": {
+        "topic_id": {"type": "string", "minLength": 1},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 240}
+      },
+      "additionalProperties": false
+    },
+    "safety_control_validated_control": {
+      "type": "object",
+      "required": [
+        "subgroup_id",
+        "control_name",
+        "control_definition",
+        "important_boundaries"
+      ],
+      "properties": {
+        "subgroup_id": {"type": "string", "minLength": 1},
+        "control_name": {"type": "string", "minLength": 1, "maxLength": 80},
+        "control_definition": {"type": "string", "minLength": 1, "maxLength": 300},
+        "important_boundaries": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1, "maxLength": 240},
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "safety_control_synthesis_validation_object": {
+      "type": "object",
+      "required": [
+        "request_id",
+        "candidate_group_id",
+        "decision",
+        "validated_controls",
+        "topic_assignments",
+        "excluded_topics",
+        "validation_summary",
+        "needs_further_review"
+      ],
+      "properties": {
+        "request_id": {"type": "string", "minLength": 1},
+        "candidate_group_id": {"type": "string", "minLength": 1},
+        "decision": {
+          "type": "string",
+          "enum": [
+            "accept",
+            "accept_after_excluding_topics",
+            "split",
+            "reject",
+            "unresolved"
+          ]
+        },
+        "validated_controls": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/safety_control_validated_control"}
+        },
+        "topic_assignments": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/safety_control_topic_assessment"}
+        },
+        "excluded_topics": {
+          "type": "array",
+          "items": {"$ref": "#/definitions/safety_control_excluded_topic"}
+        },
+        "validation_summary": {"type": "string", "minLength": 1, "maxLength": 300},
+        "needs_further_review": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "safety_control_unit_evidence_judgment": {
+      "type": "object",
+      "required": [
+        "unit_id",
+        "supports_control",
+        "failure_mode",
+        "exception_reason",
+        "needs_further_review"
+      ],
+      "properties": {
+        "unit_id": {"type": "string", "minLength": 1},
+        "supports_control": {"type": "boolean"},
+        "failure_mode": {"type": "string", "maxLength": 120},
+        "exception_reason": {"type": "string", "maxLength": 240},
+        "needs_further_review": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "safety_control_unit_evidence_batch_object": {
+      "type": "object",
+      "required": ["request_id", "control_id", "judgments"],
+      "properties": {
+        "request_id": {"type": "string", "minLength": 1},
+        "control_id": {"type": "string", "minLength": 1},
+        "judgments": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/definitions/safety_control_unit_evidence_judgment"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "safety_control_knowledge_card_semantics_object": {
+      "type": "object",
+      "required": [
+        "request_id",
+        "control_id",
+        "control_name",
+        "control_definition",
+        "inspection_focus",
+        "important_boundaries",
+        "needs_further_review"
+      ],
+      "properties": {
+        "request_id": {"type": "string", "minLength": 1},
+        "control_id": {"type": "string", "minLength": 1},
+        "control_name": {"type": "string", "minLength": 1, "maxLength": 80},
+        "control_definition": {"type": "string", "minLength": 1, "maxLength": 300},
+        "inspection_focus": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1, "maxLength": 240},
+          "uniqueItems": true
+        },
+        "important_boundaries": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1, "maxLength": 240},
+          "uniqueItems": true
+        },
+        "needs_further_review": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "anyOf": [
+    {"$ref": "#/definitions/extraction_array"},
+    {"$ref": "#/definitions/extraction_batch_array"},
+    {"$ref": "#/definitions/scene_split_array"},
+    {"$ref": "#/definitions/cluster_naming_object"},
+    {"$ref": "#/definitions/cluster_naming_v2_object"},
+    {"$ref": "#/definitions/topic_control_relation_batch_object"},
+    {"$ref": "#/definitions/topic_control_group_validation_object"},
+    {"$ref": "#/definitions/topic_control_unit_validation_batch_object"},
+    {"$ref": "#/definitions/topic_control_knowledge_card_semantics_object"},
+    {"$ref": "#/definitions/safety_control_synthesis_validation_object"},
+    {"$ref": "#/definitions/safety_control_unit_evidence_batch_object"},
+    {"$ref": "#/definitions/safety_control_knowledge_card_semantics_object"}
+  ]
+}

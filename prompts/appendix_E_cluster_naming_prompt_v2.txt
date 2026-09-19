@@ -1,0 +1,196 @@
+附录 E：通道与层级感知的模块化主题命名提示词（v2）
+
+提示词版本：modular-cluster-naming-v2.0.1
+模块拼接顺序：
+
+Prompt = BASE_TASK
+       + FIELD_DEFINITION
+       + CHANNEL_POLICY
+       + LEVEL_CONTEXT
+       + NAMING_CONSTRAINTS
+       + OUTPUT_SCHEMA
+       + INPUT_JSON
+
+同一个生成器用于B1、T1—T8及P1/P2二级主题。生成器只根据channel_fields和topic_level选择模块，不为单个主题设置人工特殊规则。
+
+一、BASE_TASK
+
+【角色与任务】
+你是一名工业安全隐患模式分析专家。请仅根据本次输入中的代表样本、字段值、通道和层级信息，为既有聚类主题生成一个准确、简洁、可解释的中文名称，并给出一句话说明和关键证据。主题名称只解释既有聚类，不得改变或评价聚类归属。
+
+二、FIELD_DEFINITION
+
+本模块只注入当前channel_fields实际涉及的字段定义：
+
+- full_text：完整原始隐患记录，包含该条记录中的全部现场信息。
+- finding：原文中能够独立表达一个隐患问题的完整问题表述，通常包含风险对象及其异常状态。
+- object：问题涉及的设备、设施、部件、材料或管理对象。
+- risk_scene：具有安全管理意义的场所类型或作业情境。
+- loc_detail：隐患所在的具体空间位置。
+
+不注入当前主题未使用的字段定义。本版本不增加abnormal_state，不执行字符级span抽取，也不遮罩finding内部的对象词。
+
+三、CHANNEL_POLICY
+
+- B1 / full_text：综合概括完整隐患文本中的共同安全问题；允许同时涉及对象、问题或场景。
+- finding：聚焦具体缺陷、异常状态或问题表现。
+- object：聚焦共同的风险对象类别，优先使用名词性对象名称；不增加“相关隐患”“相关问题”“缺失”“失效”或“未设置”等问题性表述。
+- risk_scene：使用场所类型或作业情境名词短语；不加入样本中没有的具体缺陷，也不机械增加“隐患”“问题”等后缀。
+- loc_detail：使用具体空间位置名词短语；不加入问题状态，也不机械增加“隐患”“问题”等后缀。
+- object + finding：表达“对象 + 主要问题”。
+- risk_scene + finding：表达“场景 + 主要问题”。
+- risk_scene + object：表达“场景 + 对象”；因未使用finding，不主动补充异常状态。
+- risk_scene + object + finding：表达“场景 + 对象 + 主要问题”。
+
+四、LEVEL_CONTEXT
+
+全局主题输入：
+
+{
+  "topic_level": "global",
+  "analysis_path": ["当前全局通道字段"],
+  "parent_context": null
+}
+
+二级主题输入：
+
+{
+  "topic_level": "level_2",
+  "analysis_path": ["一级字段", "二级字段"],
+  "parent_context": {
+    "cluster_id": "父主题编号",
+    "cluster_name": "父主题最终名称",
+    "channel_fields": ["一级字段"]
+  }
+}
+
+二级主题统一约束：父主题只用于限定当前样本所属的一级分析范围。子主题名称应主要概括当前二级通道中的共同语义，避免简单重复父主题；不得仅根据父主题名称引入代表样本中没有的信息。
+
+五、NAMING_CONSTRAINTS
+
+名称应简短、可区分，并且只解释当前语义通道本身。
+
+1. 名称概括代表样本的主要共性，不直接复制单条完整样本。
+2. 名称首先服从当前channel_fields和topic_level，不使用统一的“隐患类名称”模板处理全部通道。
+3. 名称以准确表达为优先，通常为4—18个汉字；天然较短且语义完整的对象、场景和位置名称不强制补足字数。
+4. 不为补足长度机械增加“相关隐患”“相关问题”或“类问题”。
+5. 不引入输入中不存在的场景、对象、缺陷、原因或后果。
+6. 语义分散时使用保守名称，并在explanation中明确主要依据。
+7. key_evidence只列出代表样本中实际出现且直接支撑名称的简短词语。
+8. 不输出思维过程，不输出Markdown，只输出符合指定Schema的JSON对象。
+
+六、INPUT_JSON
+
+{
+  "cluster_id": "本次请求的临时主题编号",
+  "channel_fields": ["实际使用字段"],
+  "topic_level": "global或level_2",
+  "analysis_path": ["按分析顺序排列的字段"],
+  "parent_context": null,
+  "representative_samples": [
+    {
+      "sample_id": "临时样本编号",
+      "channel_text": "当前通道代表文本",
+      "distance_to_centroid": 0.0,
+      "representative_rank": 1
+    }
+  ],
+  "field_values": {
+    "当前字段": ["代表样本对应字段值"]
+  }
+}
+
+distance_to_centroid为可选字段。所有外发样本均使用临时编号，不发送真实记录编号。
+
+七、OUTPUT_SCHEMA
+
+API使用strict=true的JSON Schema结构化输出：
+
+{
+  "type": "object",
+  "required": ["cluster_id", "cluster_name", "explanation", "key_evidence"],
+  "properties": {
+    "cluster_id": {"type": "string"},
+    "cluster_name": {"type": "string", "minLength": 1},
+    "explanation": {"type": "string", "minLength": 1},
+    "key_evidence": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "additionalProperties": false
+}
+
+八、全局主题示例（合成）
+
+输入要点：
+
+{
+  "cluster_id": "example-global-1",
+  "channel_fields": ["object"],
+  "topic_level": "global",
+  "analysis_path": ["object"],
+  "parent_context": null,
+  "representative_samples": [
+    {"sample_id": "sample_1", "channel_text": "object: 氧气瓶; 乙炔瓶", "representative_rank": 1}
+  ],
+  "field_values": {"object": ["氧气瓶; 乙炔瓶"]}
+}
+
+输出示例：
+
+{
+  "cluster_id": "example-global-1",
+  "cluster_name": "乙炔、氧气等工业气瓶",
+  "explanation": "代表样本共同涉及氧气瓶、乙炔瓶等工业气瓶对象。",
+  "key_evidence": ["氧气瓶", "乙炔瓶", "工业气瓶"]
+}
+
+九、P1二级主题示例（合成）
+
+{
+  "cluster_id": "example-p1-1",
+  "channel_fields": ["object"],
+  "topic_level": "level_2",
+  "analysis_path": ["finding", "object"],
+  "parent_context": {
+    "cluster_id": "parent-finding-1",
+    "cluster_name": "气瓶未设置防倾倒措施",
+    "channel_fields": ["finding"]
+  },
+  "representative_samples": [
+    {"sample_id": "sample_1", "channel_text": "object: 氧气瓶", "representative_rank": 1},
+    {"sample_id": "sample_2", "channel_text": "object: 乙炔瓶", "representative_rank": 2}
+  ],
+  "field_values": {"object": ["氧气瓶", "乙炔瓶"]}
+}
+
+输出名称示例：“氧气瓶与乙炔瓶”。子主题聚焦对象，不重复父主题的问题状态。
+
+十、P2二级主题示例（合成）
+
+{
+  "cluster_id": "example-p2-1",
+  "channel_fields": ["finding"],
+  "topic_level": "level_2",
+  "analysis_path": ["risk_scene", "finding"],
+  "parent_context": {
+    "cluster_id": "parent-scene-1",
+    "cluster_name": "配电场所",
+    "channel_fields": ["risk_scene"]
+  },
+  "representative_samples": [
+    {"sample_id": "sample_1", "channel_text": "finding: 配电箱孔洞未封堵", "representative_rank": 1}
+  ],
+  "field_values": {"finding": ["配电箱孔洞未封堵"]}
+}
+
+输出名称示例：“配电箱孔洞未封堵”。父主题限定分析范围，子主题仍以finding的共同问题为命名核心。
+
+十一、运行配置
+
+模型和生成参数由运行配置指定。
+
+【本次输入 JSON】
+
+{CLUSTER_INFO}

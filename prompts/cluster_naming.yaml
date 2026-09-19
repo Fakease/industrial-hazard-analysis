@@ -1,0 +1,47 @@
+field_definitions:
+  full_text: 完整原始隐患记录，包含该条记录中的全部现场信息。
+  finding: 原文中能够独立表达一个隐患问题的完整问题表述，通常包含风险对象及其异常状态。
+  object: 问题涉及的设备、设施、部件、材料或管理对象。
+  risk_scene: 具有安全管理意义的场所类型或作业情境。
+  loc_detail: 隐患所在的具体空间位置。
+channel_policies:
+  full_text: 综合概括完整隐患文本中的共同安全问题；名称允许同时涉及对象、问题或场景。
+  finding: 聚焦具体缺陷、异常状态或问题表现。
+  object: 聚焦共同的风险对象类别，优先使用名词性对象名称；不要为了形成“隐患名称”而增加“相关隐患”“相关问题”“缺失”“失效”或“未设置”等问题性表述。
+  risk_scene: 聚焦场所类型或作业情境，使用场景名词短语；不得主动加入代表样本中没有的具体缺陷，也不得机械增加“隐患”“问题”等问题性后缀。
+  loc_detail: 聚焦具体空间位置，使用位置名词短语；不得主动加入问题状态，也不得机械增加“隐患”“问题”等问题性后缀。
+  object+finding: 表达“对象 + 主要问题”。
+  risk_scene+finding: 表达“场景 + 主要问题”。
+  risk_scene+object: 表达“场景 + 对象”；因为没有 finding，不主动补充异常状态。
+  risk_scene+object+finding: 表达“场景 + 对象 + 主要问题”。
+modules:
+  BASE_TASK: |-
+    【角色与任务】
+    你是一名工业安全隐患模式分析专家。请仅根据本次输入中的代表样本、字段值、通道和层级信息，为既有聚类主题生成一个准确、简洁、可解释的中文名称，并给出一句话说明和关键证据。主题名称只解释既有聚类，不得改变或评价聚类归属。
+  FIELD_DEFINITION: |-
+    【当前字段定义】
+    {FIELD_DEFINITIONS}
+  CHANNEL_POLICY: |-
+    【当前通道命名目标】
+    当前 channel_fields 为 {CHANNEL_FIELDS}。
+    {CHANNEL_POLICY}
+  LEVEL_CONTEXT: |-
+    【主题层级】
+    {LEVEL_CONTEXT}
+  NAMING_CONSTRAINTS: |-
+    【统一命名约束】
+    1. 名称应概括代表样本的主要共性，不直接复制单条完整样本。
+    2. 名称必须首先服从当前 channel_fields 和 topic_level，不得用统一的“隐患类名称”模板处理全部通道。
+    3. 名称以准确表达为优先，通常控制在4—18个汉字；天然较短且语义完整的对象、场景和位置名称不强制补足字数。
+    4. 不得为了补足长度机械增加“相关隐患”“相关问题”或“类问题”。
+    5. 不得引入输入中不存在的场景、对象、缺陷、原因或后果。
+    6. 语义分散时使用保守名称，并在 explanation 中明确说明主要依据。
+    7. key_evidence 只列出代表样本中实际出现、且直接支撑名称的简短词语。
+    8. 不输出思维过程，不输出 Markdown，只输出符合指定 Schema 的 JSON 对象。
+  OUTPUT_SCHEMA: |-
+    【输出要求】
+    严格输出一个 JSON 对象，包含且仅包含 cluster_id、cluster_name、explanation、key_evidence 四个字段。cluster_id 必须原样返回；cluster_name 与 explanation 均不得为空；key_evidence 为字符串数组。
+level_contexts:
+  global: 当前主题为全局主题。analysis_path={ANALYSIS_PATH}；只概括当前通道代表样本的共同语义。
+  level_2: 当前主题为二级主题。analysis_path={ANALYSIS_PATH}；parent_context={PARENT_CONTEXT}。父主题仅用于限定当前样本所属的一级分析范围。子主题名称应主要概括当前二级通道中的共同语义，避免简单重复父主题；不得仅根据父主题名称引入代表样本中没有的信息。
+input_json_label: 【本次输入 JSON】
